@@ -1,69 +1,190 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
+import { Product, CartItem, Order } from "../types";
 
-export default function Home() {
+// Contoh data menu statis (bisa ditambah sesuai menu kedai)
+const MENU: Product[] = [
+  { id: "1", name: "Kopi Susu Gula Aren", price: 18000 },
+  { id: "2", name: "Americano", price: 15000 },
+  { id: "3", name: "Cafe Latte", price: 20000 },
+];
+
+export default function CashierSystem() {
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [orderHistory, setOrderHistory] = useState<Order[]>([]);
+
+  // Mengambil history dari localStorage saat web pertama dibuka
+  useEffect(() => {
+    const savedHistory = localStorage.getItem("shiftHistory");
+    if (savedHistory) {
+      setOrderHistory(JSON.parse(savedHistory));
+    }
+  }, []);
+
+  // Logika menambahkan item ke keranjang
+  const addToCart = (product: Product) => {
+    setCart((prevCart) => {
+      const existing = prevCart.find((item) => item.id === product.id);
+      if (existing) {
+        return prevCart.map((item) =>
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item,
+        );
+      }
+      return [...prevCart, { ...product, qty: 1 }];
+    });
+  };
+
+  // Menghitung subtotal keranjang saat ini
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+
+  // Menghitung total penjualan hari ini (Shift 16:00 - 00:00)
+  const todayTotalSales = orderHistory.reduce(
+    (sum, order) => sum + order.total,
+    0,
+  );
+
+  // Logika Checkout
+  const handleCheckout = () => {
+    if (cart.length === 0) return;
+
+    // Karena payment via barcode terpisah, kasir cukup memverifikasi
+    // pembayaran, lalu menekan tombol ini untuk mencatat pesanan.
+    const newOrder: Order = {
+      id: `ORD-${Date.now()}`,
+      timestamp: new Date().toLocaleString("id-ID"),
+      items: cart,
+      total: cartTotal,
+    };
+
+    const updatedHistory = [...orderHistory, newOrder];
+    setOrderHistory(updatedHistory);
+
+    // Simpan ke localStorage agar history aman
+    localStorage.setItem("shiftHistory", JSON.stringify(updatedHistory));
+
+    // Kosongkan keranjang untuk pelanggan berikutnya
+    setCart([]);
+  };
+
+  const handleResetShift = () => {
+    if (
+      confirm(
+        "Apakah Anda yakin ingin menutup shift dan mereset data hari ini?",
+      )
+    ) {
+      setOrderHistory([]);
+      localStorage.removeItem("shiftHistory");
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <div className="flex min-h-screen bg-gray-50 text-gray-800">
+      {/* KIRI: Area Menu */}
+      <div className="w-2/3 p-6 border-r">
+        <h1 className="text-2xl font-bold mb-6">Menu Kedai Kopi</h1>
+        <div className="grid grid-cols-3 gap-4">
+          {MENU.map((product) => (
+            <button
+              key={product.id}
+              onClick={() => addToCart(product)}
+              className="p-4 bg-white shadow rounded-lg hover:bg-blue-50 text-left transition"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              <h2 className="font-semibold">{product.name}</h2>
+              <p className="text-gray-500">
+                Rp {product.price.toLocaleString("id-ID")}
+              </p>
+            </button>
+          ))}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* BAWAH: Area History & Laporan Penjualan */}
+        <div className="mt-12">
+          <h2 className="text-xl font-bold mb-4">
+            Laporan Shift (16:00 - 00:00)
+          </h2>
+          <div className="p-4 bg-blue-100 rounded-lg flex justify-between items-center mb-6">
+            <span className="font-bold">Total Penjualan Hari Ini:</span>
+            <span className="text-2xl font-black">
+              Rp {todayTotalSales.toLocaleString("id-ID")}
+            </span>
+          </div>
+
+          <h3 className="font-bold mb-2">Riwayat Transaksi:</h3>
+          <div className="space-y-3 max-h-60 overflow-y-auto">
+            {orderHistory.map((order) => (
+              <div
+                key={order.id}
+                className="p-3 bg-white border rounded shadow-sm"
+              >
+                <div className="flex justify-between text-sm text-gray-500 mb-2">
+                  <span>{order.id}</span>
+                  <span>{order.timestamp}</span>
+                </div>
+                {order.items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <span>
+                      {item.qty}x {item.name}
+                    </span>
+                    <span>
+                      Rp {(item.price * item.qty).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                ))}
+                <div className="text-right font-bold mt-2 pt-2 border-t">
+                  Total: Rp {order.total.toLocaleString("id-ID")}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={handleResetShift}
+            className="mt-4 px-4 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Tutup Shift (Reset Data)
+          </button>
         </div>
-      </main>
+      </div>
+
+      {/* KANAN: Area Keranjang */}
+      <div className="w-1/3 p-6 bg-white flex flex-col">
+        <h2 className="text-xl font-bold mb-6">Keranjang Pesanan</h2>
+        <div className="flex-1 overflow-y-auto">
+          {cart.length === 0 ? (
+            <p className="text-gray-400 text-center mt-10">Belum ada pesanan</p>
+          ) : (
+            cart.map((item, idx) => (
+              <div key={idx} className="flex justify-between mb-4 items-center">
+                <div>
+                  <h3 className="font-semibold">{item.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    {item.qty} x Rp {item.price.toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <div className="font-bold">
+                  Rp {(item.price * item.qty).toLocaleString("id-ID")}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-4 pt-4 border-t">
+          <div className="flex justify-between text-xl font-bold mb-6">
+            <span>Total Tagihan:</span>
+            <span>Rp {cartTotal.toLocaleString("id-ID")}</span>
+          </div>
+          <div className="bg-gray-100 p-3 rounded mb-4 text-sm text-center text-gray-600">
+            Arahkan pelanggan scan barcode QRIS di meja kasir.
+          </div>
+          <button
+            onClick={handleCheckout}
+            disabled={cart.length === 0}
+            className="w-full py-4 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 disabled:opacity-50"
+          >
+            Selesaikan Pembayaran
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
