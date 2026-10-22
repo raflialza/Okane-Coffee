@@ -3,11 +3,27 @@ import { useState, useEffect } from "react";
 import { Product, CartItem, Order } from "../types";
 
 const MENU: Product[] = [
-  { id: "1", name: "Kopi Susu Gula Aren", price: 18000 },
-  { id: "2", name: "Americano", price: 15000 },
-  { id: "3", name: "Cafe Latte", price: 20000 },
-  { id: "4", name: "Matcha Latte", price: 22000 },
-  { id: "5", name: "Caramel Macchiato", price: 24000 },
+  { id: "1", name: "Regal Crush Latte", price: 15000, category: "Coffee" },
+  { id: "2", name: "Okane Latte Treasure", price: 15000, category: "Coffee" },
+  {
+    id: "3",
+    name: "Butturscotch Seasalt Latte",
+    price: 15000,
+    category: "Coffee",
+  },
+  { id: "4", name: "Moon Blanc", price: 15000, category: "Coffee" },
+  { id: "5", name: "Aren Latte", price: 13000, category: "Coffee" },
+  { id: "6", name: "Spanish Latte", price: 13000, category: "Coffee" },
+  { id: "7", name: "Caramel", price: 13000, category: "Non-Coffee" },
+  { id: "8", name: "Vanilla Latte", price: 13000, category: "Coffee" },
+  { id: "9", name: "Matcha Latte", price: 8000, category: "Non-Coffee" },
+  { id: "10", name: "Lemon Fizz", price: 10000, category: "Non-Coffee" },
+  { id: "11", name: "Mango Fizz", price: 10000, category: "Non-Coffee" },
+  { id: "12", name: "Lychee Fizz", price: 10000, category: "Non-Coffee" },
+  { id: "13", name: "Taro Latte", price: 8000, category: "Non-Coffee" },
+  { id: "14", name: "Royal Chocolate", price: 8000, category: "Non-Coffee" },
+  { id: "15", name: "Americano", price: 8000, category: "Coffee" },
+  { id: "16", name: "Americano Lemon", price: 9000, category: "Coffee" },
 ];
 
 export default function CashierSystem() {
@@ -17,6 +33,16 @@ export default function CashierSystem() {
 
   // State for filtering history by date
   const [selectedDate, setSelectedDate] = useState<string>("");
+
+  // State for filtering menu by category
+  const [activeCategory, setActiveCategory] = useState<string>("All");
+
+  const categories = ["All", "Coffee", "Non-Coffee"];
+
+  const filteredMenu =
+    activeCategory === "All"
+      ? MENU
+      : MENU.filter((item) => item.category === activeCategory);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -108,6 +134,21 @@ export default function CashierSystem() {
     0,
   );
 
+  // Calculate most purchased items for the selected date
+  const itemCounts: Record<string, { name: string; qty: number }> = {};
+  filteredHistory.forEach((order) => {
+    order.items.forEach((item) => {
+      if (!itemCounts[item.id]) {
+        itemCounts[item.id] = { name: item.name, qty: 0 };
+      }
+      itemCounts[item.id].qty += item.qty;
+    });
+  });
+
+  const topPurchasedItems = Object.values(itemCounts)
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 3);
+
   if (!isMounted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-800">
@@ -123,8 +164,26 @@ export default function CashierSystem() {
         <h1 className="text-2xl font-bold mb-6 text-center lg:text-left">
           OKANE COFFEE
         </h1>
+
+        {/* Category Tabs */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {categories.map((category) => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition ${
+                activeCategory === category
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {MENU.map((product) => (
+          {filteredMenu.map((product) => (
             <button
               key={product.id}
               onClick={() => addToCart(product)}
@@ -141,7 +200,7 @@ export default function CashierSystem() {
         {/* BOTTOM: History Area */}
         <div className="mt-12">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-            <h2 className="text-xl font-bold">Order History & Revenue</h2>
+            <h2 className="text-xl font-bold">Performance Tracking ({selectedDate})</h2>
             <input
               type="date"
               value={selectedDate}
@@ -151,13 +210,26 @@ export default function CashierSystem() {
           </div>
 
           <div className="p-4 bg-blue-100 rounded-lg flex flex-col sm:flex-row justify-between items-center mb-6 gap-2">
-            <span className="font-bold">Daily Revenue:</span>
+            <span className="font-bold">Total Daily Revenue:</span>
             <span className="text-2xl font-black text-green-700">
               Rp {dailyTotalSales.toLocaleString("en-US")}
             </span>
           </div>
 
-          <h3 className="font-bold mb-2">Transactions for {selectedDate}:</h3>
+          {topPurchasedItems.length > 0 && (
+            <div className="mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-100">
+              <h3 className="font-bold mb-3 text-gray-700">Top Purchased Items</h3>
+              <div className="flex flex-wrap gap-3">
+                {topPurchasedItems.map((item, idx) => (
+                  <div key={idx} className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">
+                    {item.name} ({item.qty} sold)
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <h3 className="font-bold mb-2">Transactions & Times of Purchase:</h3>
           {filteredHistory.length === 0 ? (
             <p className="text-gray-500 text-sm">
               No transactions found for {selectedDate}. Revenue is zero.
